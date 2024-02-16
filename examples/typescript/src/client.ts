@@ -150,22 +150,42 @@ function inferUnknownTokenPrice(preBalances: any[], postBalances: any[]): void {
   // discount any trade earlier than 1hr
   // save the object to a file
   if (!Object.keys(goodCache).includes(unknownTokenPre.mint)){
-goodCache[unknownTokenPre.mint] = {
+goodCache[unknownTokenPre.mint] = [{
   volume: Number((inferredUnknownPrice * unknownAmountChange).toFixed(6)),
+  price: inferredUnknownPrice,
   cumulativeVolume: 0,
   timestamp: Date.now()
-}
+}]
   } else {
-    goodCache[unknownTokenPre.mint].cumulativeVolume += Number((inferredUnknownPrice * unknownAmountChange).toFixed(6))
-    goodCache[unknownTokenPre.mint].timestamp = Date.now()
-    goodCache[unknownTokenPre.mint].volume = Number((inferredUnknownPrice * unknownAmountChange).toFixed(6))
+    goodCache[unknownTokenPre.mint].push(
+      {
+        price: inferredUnknownPrice,
+        volume: Number((inferredUnknownPrice * unknownAmountChange).toFixed(6)),
+        cumulativeVolume: Number((inferredUnknownPrice * unknownAmountChange).toFixed(6)) + goodCache[unknownTokenPre.mint][goodCache[unknownTokenPre.mint].length-1].cumulativeVolume,
+        timestamp: Date.now()
+      }
+    )
   }
-  const data = JSON.stringify(goodCache);
-  fs.writeFileSync('goodCache.json', data);
+  const tCache: any = {}
+  for (const c of Object.keys(goodCache)){
+    const cached = goodCache[c]
+    for (const item of cached){
+      if (item.timestamp < Date.now() - 3600000){
+        cached.shift()
+      }
+    }
+    tCache[c] = cached
+  }
+  const data = JSON.stringify(tCache);
+  // 1-1000 random chance 
+  if (Math.floor(Math.random() * 1000) === 1){
+  fs.writeFileSync('/root/fc-polls/public/goodCache.json', data);
+  }
 
 
   
   }
+  else {}
 }
   // Handle updates
   stream.on("data", async(data) => {
